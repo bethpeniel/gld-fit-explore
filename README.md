@@ -28,8 +28,9 @@ The app fits the four-parameter FMKL GLD to returns by moment matching (MM), max
 | Component | State |
 |---|---|
 | Source (GitHub) | <https://github.com/bethpeniel/gld-fit-explore> — public, branch `main` |
-| Live app (Posit Connect Cloud) | git-backed deployment from the GitHub repository; `manifest.json` lists the R version and packages. Once published, paste the app address into `APP_URL` at the top of `gld_app.html` and in the table here |
-| Local copy | `C:\Users\peteo\GLD\gld_app`; `start_app.bat` starts the server on port 4322 and opens `gld_app.html` |
+| Live app (Posit Connect Cloud) | **Online** at <https://01a160c2-0f18-1896-5a9f-de608cb2c2b2.share.connect.posit.cloud/> — public, built from the GitHub repository (`manifest.json` lists the R version and packages); every push to `main` republishes it |
+| Launcher page | `gld_app.html` embeds the public app; opened with `?local=1` (what `start_app.bat` does) it embeds the local server on port 4322 instead |
+| Local copy | `C:\Users\peteo\GLD\gld_app`; `start_app.bat` starts the server on port 4322 and opens `gld_app.html?local=1` |
 
 ### Publishing on Posit Connect Cloud (git-backed, like the wavelet app)
 
@@ -37,7 +38,16 @@ The app fits the four-parameter FMKL GLD to returns by moment matching (MM), max
 2. **Publish** → **Shiny (R)** → repository `bethpeniel/gld-fit-explore`, branch `main`, primary file `app.R`; `manifest.json` is detected automatically.
 3. Choose public or private access and publish. Connect Cloud installs the packages from `manifest.json` (gld, GLDEX, shiny, bslib, DT, ggplot2, shinycssloaders, readxl, lubridate, zip and their dependencies) and starts the app.
 4. Every later `git push` to `main` republishes the app automatically. After adding an R package, rerun `rsconnect::writeManifest()` from the app folder and push the new `manifest.json`.
-5. Copy the published address into `APP_URL` in `gld_app.html` so the launcher page (and any website embed) points at the public app.
+5. The published address is stored as `PUBLIC_URL` at the top of `gld_app.html`; change it there if a custom Connect Cloud URL is set later.
+
+### Embedding on a website
+
+```html
+<iframe src="https://01a160c2-0f18-1896-5a9f-de608cb2c2b2.share.connect.posit.cloud/"
+        title="GLD_FitExplore" style="width:100%; height:calc(100vh - 120px); border:0;" allow="fullscreen"></iframe>
+```
+
+Connect Cloud allows framing; adjust the `120px` to the site's header height.
 
 ## Folder layout
 

@@ -28,26 +28,30 @@
 
 <!-- ======================================================================
      Set APP_URL to where the Shiny app is served.
-       * Local use : http://127.0.0.1:4322/  (start_app.bat starts the server,
-                     waits for it, and opens this page; see README.md)
-       * Once published (Posit Connect Cloud / shinyapps.io), put the public
-         address here and this page works from any website.
+       * Posit Connect Cloud (current, auto-publishes from GitHub):
+           https://01a160c2-0f18-1896-5a9f-de608cb2c2b2.share.connect.posit.cloud/
+       * Local use : http://127.0.0.1:4322/  (start_app.bat starts the local
+                     server and opens this page with ?local=1, see README.md)
      ====================================================================== -->
 <script>
-  const APP_URL = "http://127.0.0.1:4322/";
+  const PUBLIC_URL = "https://01a160c2-0f18-1896-5a9f-de608cb2c2b2.share.connect.posit.cloud/";
+  const LOCAL_URL = "http://127.0.0.1:4322/";
+  const APP_URL = new URLSearchParams(location.search).has("local") ? LOCAL_URL : PUBLIC_URL;
 </script>
 
 <div id="help">
   <div id="help-waiting"><span class="spinner"></span><b>Waiting for the GLD app server</b> at <code class="url"></code> &hellip;
-    the app appears below as soon as it answers (it takes 10-30 seconds to start).</div>
+    the app appears below as soon as it answers (it takes 10-30 seconds to start; a server busy with a long estimation also answers late).</div>
   <div id="help-offline" style="display:none"><b>The app did not answer</b> at <code class="url"></code>.
-    If it is not showing below, start the server first: double-click <code>start_app.bat</code> in the app folder
-    (or run <code>Rscript -e "shiny::runApp('C:/Users/peteo/GLD/gld_app', port = 4322)"</code>), then retry.</div>
+    If it is not showing below: for the public address check your internet connection and retry;
+    for the local address start the server first (double-click <code>start_app.bat</code> in the app folder,
+    or run <code>Rscript -e "shiny::runApp('C:/Users/peteo/GLD/gld_app', port = 4322)"</code>), then retry.</div>
   <div class="row">
     <button onclick="location.reload()">Retry</button>
     <a class="btn alt" id="direct" href="#" target="_blank">Open the app in its own tab</a>
     <button class="alt btn" onclick="document.getElementById('help').style.display='none'">Hide this message</button>
-    <span class="muted">Once the app is published online, change <code>APP_URL</code> at the top of this file.</span>
+    <a class="btn alt" id="switch" href="#">Switch to the local / public copy</a>
+    <span class="muted">Public copy: Posit Connect Cloud, republished from GitHub on every push.</span>
   </div>
 </div>
 
@@ -60,11 +64,14 @@
   const offline = document.getElementById("help-offline");
   document.querySelectorAll(".url").forEach(el => el.textContent = APP_URL);
   document.getElementById("direct").href = APP_URL;
+  document.getElementById("switch").href = location.pathname + (APP_URL === LOCAL_URL ? "" : "?local=1");
 
   // The frame is always loaded (some browsers refuse scripted probes from a local file, so the probe
   // is only used to decide whether to show the help bar and to reload the frame once the server is up).
   frame.src = APP_URL;
-  const probe = () => fetch(APP_URL, { mode: "no-cors", cache: "no-store" });
+  // probe with a time limit so that a server that is busy or hung shows the help bar instead of nothing
+  const probe = () => { const c = new AbortController(); setTimeout(() => c.abort(), 8000);
+                        return fetch(APP_URL, { mode: "no-cors", cache: "no-store", signal: c.signal }); };
   let tries = 0, up = false;
   function check() {
     probe().then(() => {

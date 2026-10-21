@@ -24,4 +24,5 @@ exit /b 1
 
 :open
 echo Server is up. Opening the app ...
-start "" "%APPDIR%gld_app.html"
+rem ?local=1 makes gld_app.html show the local server instead of the public Connect Cloud copy
+start "" "file:///%APPDIR:\=/%gld_app.html?local=1"
