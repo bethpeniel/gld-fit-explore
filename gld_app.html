@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="author" content="Peterson Owusu Junior">
+<meta name="description" content="GLD_FitExplore: fitting the generalised lambda distribution to financial returns by moment matching and maximum likelihood, by Peterson Owusu Junior.">
+<title>GLD_FitExplore</title>
+<style>
+  :root { --bg: #f9f9f7; --fg: #0b0b0b; --accent: #2a78d6; --accent-2: #eb6834; --muted: #52514e; }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg);
+               font-family: "Segoe UI", system-ui, -apple-system, sans-serif; display: flex; flex-direction: column; }
+  #app { flex: 1 1 auto; width: 100%; border: 0; display: block; min-height: 0; }
+  #help { display: none; flex: 0 0 auto; background: #fff; border-bottom: 3px solid; border-image: linear-gradient(90deg, var(--accent), var(--accent-2)) 1;
+          padding: 10px 16px; font-size: .95rem; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+  #help b { color: var(--accent); }
+  #help code { background: #eef2f5; border-radius: 4px; padding: 1px 5px; font-size: .85rem; }
+  #help .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 6px; }
+  button, .btn { background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 6px 14px; font-size: .9rem; cursor: pointer; text-decoration: none; }
+  .btn.alt { background: #fff; color: var(--accent); border: 1px solid var(--accent); }
+  .muted { font-size: .82rem; color: var(--muted); }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 3px solid #cde2fb; border-top-color: var(--accent);
+             border-radius: 50%; animation: spin 1s linear infinite; vertical-align: middle; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- ======================================================================
+     Set APP_URL to where the Shiny app is served.
+       * Local use : http://127.0.0.1:4322/  (start_app.bat starts the server,
+                     waits for it, and opens this page; see README.md)
+       * Once published (Posit Connect Cloud / shinyapps.io), put the public
+         address here and this page works from any website.
+     ====================================================================== -->
+<script>
+  const APP_URL = "http://127.0.0.1:4322/";
+</script>
+
+<div id="help">
+  <div id="help-waiting"><span class="spinner"></span><b>Waiting for the GLD app server</b> at <code class="url"></code> &hellip;
+    the app appears below as soon as it answers (it takes 10-30 seconds to start).</div>
+  <div id="help-offline" style="display:none"><b>The app did not answer</b> at <code class="url"></code>.
+    If it is not showing below, start the server first: double-click <code>start_app.bat</code> in the app folder
+    (or run <code>Rscript -e "shiny::runApp('C:/Users/peteo/GLD/gld_app', port = 4322)"</code>), then retry.</div>
+  <div class="row">
+    <button onclick="location.reload()">Retry</button>
+    <a class="btn alt" id="direct" href="#" target="_blank">Open the app in its own tab</a>
+    <button class="alt btn" onclick="document.getElementById('help').style.display='none'">Hide this message</button>
+    <span class="muted">Once the app is published online, change <code>APP_URL</code> at the top of this file.</span>
+  </div>
+</div>
+
+<iframe id="app" title="GLD_FitExplore - generalised lambda distribution fits of financial returns" allow="fullscreen" loading="eager"></iframe>
+
+<script>
+  const frame = document.getElementById("app");
+  const help = document.getElementById("help");
+  const waiting = document.getElementById("help-waiting");
+  const offline = document.getElementById("help-offline");
+  document.querySelectorAll(".url").forEach(el => el.textContent = APP_URL);
+  document.getElementById("direct").href = APP_URL;
+
+  // The frame is always loaded (some browsers refuse scripted probes from a local file, so the probe
+  // is only used to decide whether to show the help bar and to reload the frame once the server is up).
+  frame.src = APP_URL;
+  const probe = () => fetch(APP_URL, { mode: "no-cors", cache: "no-store" });
+  let tries = 0, up = false;
+  function check() {
+    probe().then(() => {
+      if (!up) { up = true; help.style.display = "none"; if (tries > 0) frame.src = APP_URL; }
+    }).catch(() => {
+      tries += 1;
+      if (up) return;
+      help.style.display = "block";
+      if (tries >= 30) { waiting.style.display = "none"; offline.style.display = "block"; }
+      else setTimeout(check, 2000);
+    });
+  }
+  check();
+</script>
+</body>
+</html>

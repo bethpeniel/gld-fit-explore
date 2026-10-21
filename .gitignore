@@ -1,0 +1,22 @@
+# R / RStudio
+.Rhistory
+.RData
+.Rproj.user/
+*.Rproj
+.Renviron
+
+# deployment metadata (contains account/app ids)
+rsconnect/
+
+# working-paper tables used only to rebuild data/ locally
+tools/wip_tables.txt
+
+# results exported from the app and unpacked into this folder
+/*.zip
+/*.csv
+/*.png
+
+# OS / editor
+Thumbs.db
+.DS_Store
+*.log
