@@ -23,6 +23,22 @@ The app fits the four-parameter FMKL GLD to returns by moment matching (MM), max
   as a wide CSV (date × `<series>_<parameter>`) or a long CSV for separate use. The connectedness measures
   applied to them in the thesis are outside the app.
 
+## Status
+
+| Component | State |
+|---|---|
+| Source (GitHub) | <https://github.com/bethpeniel/gld-fit-explore> — public, branch `main` |
+| Live app (Posit Connect Cloud) | git-backed deployment from the GitHub repository; `manifest.json` lists the R version and packages. Once published, paste the app address into `APP_URL` at the top of `gld_app.html` and in the table here |
+| Local copy | `C:\Users\peteo\GLD\gld_app`; `start_app.bat` starts the server on port 4322 and opens `gld_app.html` |
+
+### Publishing on Posit Connect Cloud (git-backed, like the wavelet app)
+
+1. Sign in at <https://connect.posit.cloud> with GitHub (account `bethpeniel`).
+2. **Publish** → **Shiny (R)** → repository `bethpeniel/gld-fit-explore`, branch `main`, primary file `app.R`; `manifest.json` is detected automatically.
+3. Choose public or private access and publish. Connect Cloud installs the packages from `manifest.json` (gld, GLDEX, shiny, bslib, DT, ggplot2, shinycssloaders, readxl, lubridate, zip and their dependencies) and starts the app.
+4. Every later `git push` to `main` republishes the app automatically. After adding an R package, rerun `rsconnect::writeManifest()` from the app folder and push the new `manifest.json`.
+5. Copy the published address into `APP_URL` in `gld_app.html` so the launcher page (and any website embed) points at the public app.
+
 ## Folder layout
 
 ```
