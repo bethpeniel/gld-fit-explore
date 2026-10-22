@@ -21,13 +21,25 @@ app_theme <- function(base_size = 13) {
           axis.text = element_text(colour = INK[["secondary"]]),
           axis.title = element_text(colour = INK[["secondary"]]),
           strip.text = element_text(face = "bold", colour = INK[["primary"]], hjust = 0),
-          plot.title = element_text(face = "bold", colour = INK[["primary"]]),
+          plot.title = element_text(face = "bold", colour = INK[["primary"]], size = rel(1.05), lineheight = 1.05),
+          plot.title.position = "plot", plot.caption.position = "plot",
           plot.subtitle = element_text(colour = INK[["secondary"]]),
-          plot.caption = element_text(colour = INK[["muted"]], hjust = 0),
+          plot.caption = element_text(colour = INK[["muted"]], hjust = 0, size = rel(0.8), lineheight = 1.05),
           plot.background = element_rect(fill = INK[["surface"]], colour = NA),
           legend.position = "top", legend.justification = "left",
           legend.title = element_text(face = "bold", size = rel(0.85)), legend.text = element_text(size = rel(0.85)),
           plot.margin = margin(8, 14, 8, 8))
+}
+
+# wrap a title / caption so that it stays within the figure (width in characters;
+# full-width figures take ~75 characters per title line, half-width ones ~42)
+wrap_lab <- function(x, width = 75) {
+  if (is.null(x) || !nzchar(x)) return(x)
+  paste(unlist(lapply(strsplit(x, "\n", fixed = TRUE)[[1]], strwrap, width = width)), collapse = "\n")
+}
+# labs() with wrapped title / caption; `wrap` = c(title width, caption width)
+wlabs <- function(..., title = NULL, caption = NULL, wrap = c(75, 110)) {
+  labs(..., title = wrap_lab(title, wrap[1]), caption = wrap_lab(caption, wrap[2]))
 }
 
 method_scale <- function(methods, name = "Method") {
@@ -55,7 +67,7 @@ plot_levels <- function(time, x, series = "price", title = NULL) {
   } else df <- data.frame(time = time, x = x, series = series[1])
   df <- df[is.finite(df$x), ]
   p <- ggplot(df, aes(time, x)) + geom_line(colour = METHOD_COLOURS[["MM"]], linewidth = 0.35) +
-    labs(x = NULL, y = NULL, title = title %||% sprintf("%s: levels", paste(series, collapse = ", "))) + app_theme()
+    wlabs(x = NULL, y = NULL, title = title %||% sprintf("%s: levels", paste(series, collapse = ", "))) + app_theme()
   if (length(unique(df$series)) > 1) p + facet_wrap(~series, ncol = 1, scales = "free_y") else p + labs(y = series[1])
 }
 
@@ -63,13 +75,14 @@ plot_returns <- function(rets, series = "returns", kind = "log", title = NULL) {
   ylab <- switch(kind, log = "log return", simple = "simple return", "return")
   p <- ggplot(rets, aes(time, ret)) + geom_line(colour = METHOD_COLOURS[["MM"]], linewidth = 0.3) +
     geom_hline(yintercept = 0, colour = INK[["axis"]], linewidth = 0.4) +
-    labs(x = NULL, y = ylab, title = title %||% sprintf("%s: filtered %ss", series, ylab)) + app_theme()
+    wlabs(x = NULL, y = ylab, title = title %||% sprintf("%s: filtered %ss", series, ylab)) + app_theme()
   if ("series" %in% names(rets) && length(unique(rets$series)) > 1) p <- p + facet_wrap(~series, ncol = 1, scales = "free_y")
   p
 }
 
 # ---- rolling-window series (thesis Figure 5.7) ------------------------------
 plot_rolling_series <- function(res, params = c("l3", "l4"), title = "Rolling-window GLD estimates") {
+  n_series <- length(unique(res$series))
   labs_p <- c(l1 = "λ1 (location)", l2 = "λ2 (scale)", l3 = "λ3 (shape, left tail / skewness)", l4 = "λ4 (shape, right tail / kurtosis)",
               mean = "GLD mean", variance = "GLD variance", skewness = "GLD skewness", kurtosis = "GLD excess kurtosis")
   params <- params[params %in% names(labs_p)]
@@ -79,9 +92,8 @@ plot_rolling_series <- function(res, params = c("l3", "l4"), title = "Rolling-wi
   ggplot(long, aes(time, value, colour = method, group = method)) + geom_line(linewidth = 0.45) +
     facet_grid(rows = vars(param), cols = vars(series), scales = "free_y") +
     method_scale(levels(res$method)) +
-    labs(x = NULL, y = NULL, title = title,
-         caption = "One estimate per window end date; each window covers the preceding observations (window length in the sidebar).") +
-    app_theme() + theme(strip.text.y = element_text(angle = 0, hjust = 0))
+    wlabs(x = NULL, y = NULL, title = title, caption = "One estimate per window end date.") +
+    app_theme() + theme(strip.text.y = element_text(angle = if (n_series > 2) 90 else 0, hjust = 0))
 }
 
 # descriptive moments per sub-sample, coloured by sign (the colour-coded bars of the working paper)
@@ -97,11 +109,11 @@ plot_desc_moments <- function(desc, block) {
     geom_hline(yintercept = 0, colour = INK[["axis"]], linewidth = 0.4) +
     facet_wrap(~moment, ncol = 1, scales = "free_y") + xs +
     scale_fill_manual("Sign", values = c(Positive = INK[["positive"]], Negative = INK[["negative"]])) +
-    labs(x = NULL, y = NULL, title = "Descriptive moments of each sub-sample") + app_theme()
+    wlabs(x = NULL, y = NULL, title = "Descriptive moments by sub-sample") + app_theme()
 }
 
 # ---- fit diagnostics (Figures 2-3 of the paper) -----------------------------
-plot_fit_hist <- function(x, fits, bins = NULL, title = NULL, show_normal = TRUE) {
+plot_fit_hist <- function(x, fits, bins = NULL, title = NULL, show_normal = TRUE, wrap = c(42, 60)) {
   bins <- bins %||% max(10, grDevices::nclass.FD(x))
   curves <- do.call(rbind, lapply(names(fits), function(m) { d <- gld_density_curve(fits[[m]]); d$method <- m; d }))
   rng <- range(x)
@@ -111,7 +123,7 @@ plot_fit_hist <- function(x, fits, bins = NULL, title = NULL, show_normal = TRUE
                    fill = "#d9d8d1", colour = INK[["surface"]], linewidth = 0.2) +
     geom_line(data = curves, aes(x, y, colour = method), linewidth = 0.9) +
     method_scale(c(names(fits), if (show_normal) "Descriptive"), "Fitted density") +
-    labs(x = "return", y = "density", title = title) + app_theme()
+    wlabs(x = "return", y = "density", title = title, wrap = wrap) + app_theme()
   if (show_normal) {
     nd <- data.frame(x = seq(rng[1], rng[2], length.out = 300))
     nd$y <- stats::dnorm(nd$x, mean(x), stats::sd(x)); nd$method <- "Descriptive"
@@ -120,7 +132,7 @@ plot_fit_hist <- function(x, fits, bins = NULL, title = NULL, show_normal = TRUE
   p
 }
 
-plot_fit_qq <- function(x, fits, title = NULL) {
+plot_fit_qq <- function(x, fits, title = NULL, wrap = c(42, 60)) {
   xs <- sort(x); pp <- stats::ppoints(length(xs))
   df <- do.call(rbind, lapply(names(fits), function(m) data.frame(method = m, theoretical = gld_quantile(pp, fits[[m]]), sample = xs)))
   df$method <- factor(df$method, levels = names(fits))
@@ -128,19 +140,18 @@ plot_fit_qq <- function(x, fits, title = NULL) {
     geom_abline(slope = 1, intercept = 0, colour = INK[["axis"]], linewidth = 0.5) +
     geom_point(size = 1.1, alpha = 0.8, show.legend = FALSE) +
     facet_wrap(~method, scales = "free") + method_scale(names(fits)) +
-    labs(x = "fitted GLD quantiles", y = "sample quantiles", title = title) + app_theme()
+    wlabs(x = "fitted GLD quantiles", y = "sample quantiles", title = title, wrap = wrap) + app_theme()
 }
 
 # ---- time series of parameters and moments (Figures 4-5) --------------------
-plot_lambda_series <- function(res, block, title = "Fitted GLD parameters by sub-sample") {
+plot_lambda_series <- function(res, block, title = "GLD parameters by sub-sample") {
   long <- do.call(rbind, lapply(c("l1", "l2", "l3", "l4"), function(v)
     data.frame(start = res$start, label = res$label, method = res$method, param = v, value = res[[v]], rejected = res$rejected %in% TRUE)))
   long$param <- factor(long$param, levels = c("l1", "l2", "l3", "l4"), labels = c("λ1 (location)", "λ2 (scale)", "λ3 (shape, left tail)", "λ4 (shape, right tail)"))
   single <- block == "full" || all(is.na(long$start))
   if (single) long$start <- long$label
   p <- ggplot(long, aes(start, value, colour = method, group = method)) + facet_wrap(~param, ncol = 1, scales = "free_y") +
-    method_scale(levels(res$method)) + labs(x = NULL, y = NULL, title = title,
-                                           caption = "Crosses mark sub-samples where the fit is rejected by the goodness-of-fit rule.") + app_theme()
+    method_scale(levels(res$method)) + wlabs(x = NULL, y = NULL, title = title, caption = "× = rejected fit") + app_theme()
   if (single) p + geom_point(size = 3) else
     p + geom_line(linewidth = 0.6) + geom_point(data = long[long$rejected, ], shape = 4, size = 2.6, stroke = 1, colour = STATUS_COLOURS[["Rejected"]]) +
       date_scale(block, long$start)
@@ -156,8 +167,7 @@ plot_moment_series <- function(res, desc, block, title = "Descriptive vs fitted 
   single <- block == "full" || all(is.na(long$start))
   if (single) long$start <- long$label
   p <- ggplot(long, aes(start, value, colour = method, group = method)) + facet_wrap(~moment, ncol = 1, scales = "free_y") +
-    method_scale(lev) + labs(x = NULL, y = NULL, title = title,
-                             caption = "Fitted moments are the theoretical moments of the estimated GLD (excess kurtosis); missing where λ3 or λ4 <= -1/4.") + app_theme()
+    method_scale(lev) + wlabs(x = NULL, y = NULL, title = title, caption = "Fitted = theoretical GLD moments (excess kurtosis); blank where λ3 or λ4 ≤ -1/4.") + app_theme()
   if (single) p + geom_point(size = 3, position = position_dodge(width = 0.3)) else
     p + geom_line(aes(linewidth = method == "Descriptive")) + scale_linewidth_manual(values = c(`TRUE` = 1.1, `FALSE` = 0.55), guide = "none") +
       date_scale(block, long$start)
@@ -208,8 +218,8 @@ plot_lambda_space <- function(res, label_points = FALSE, common_limits = TRUE, t
     scale_x_continuous(expand = c(0, 0)) + scale_y_continuous(expand = c(0, 0)) +
     (if (grid_layout) facet_grid(rows = vars(orig_method), cols = vars(series), scales = if (common_limits) "fixed" else "free")
      else facet_wrap(~method, ncol = ncol, scales = if (common_limits) "fixed" else "free")) +
-    labs(x = "λ3 (left-tail shape)", y = "λ4 (right-tail shape)", title = title,
-         caption = "Dashed diagonal: symmetric distributions (λ3 = λ4). Shaded quadrant: Region 4 (both tails unbounded).") +
+    wlabs(x = "λ3 (left-tail shape)", y = "λ4 (right-tail shape)", title = title,
+          caption = "Dashed diagonal: λ3 = λ4 (symmetry). Shaded: Region 4 (infinite support).") +
     app_theme() + theme(aspect.ratio = 1)
   if (label_points && nrow(df) <= 60) {
     p <- p + if (requireNamespace("ggrepel", quietly = TRUE))
@@ -237,8 +247,8 @@ plot_cross_methods <- function(res, m1, m2, label_points = FALSE) {
     scale_shape_manual("Fit status (either method)", values = STATUS_SHAPES[1:2], drop = FALSE) +
     scale_size_manual("Fit status (either method)", values = c(2.2, 3.4), drop = FALSE) +
     coord_cartesian(xlim = lims, ylim = lims, expand = FALSE) + facet_wrap(~param) +
-    labs(x = sprintf("%s estimate", m1), y = sprintf("%s estimate", m2), title = sprintf("Shape parameters: %s versus %s", m2, m1),
-         caption = "Points on the dashed diagonal are sub-samples where the two methods agree.") + app_theme() + theme(aspect.ratio = 1)
+    wlabs(x = sprintf("%s estimate", m1), y = sprintf("%s estimate", m2), title = sprintf("Shape parameters: %s vs %s", m2, m1),
+          caption = "Dashed diagonal: both methods agree.") + app_theme() + theme(aspect.ratio = 1)
   if (label_points && nrow(m) <= 60) p <- p + geom_text(aes(label = label), size = 3, colour = INK[["secondary"]], vjust = -0.9)
   p
 }
@@ -252,13 +262,13 @@ plot_region_counts <- function(tab) {
               vjust = -0.4, size = 3, colour = INK[["secondary"]]) +
     scale_fill_manual("Method", values = METHOD_COLOURS[levels(tab$method)]) +
     scale_y_continuous(expand = expansion(mult = c(0, 0.12))) +
-    labs(x = NULL, y = "number of sub-samples", title = "Support region of the fitted GLDs",
-         caption = "Region 1: λ3 <= 0, λ4 > 0 (lower tail unbounded) · Region 2: λ3 > 0, λ4 <= 0 (upper tail unbounded)\nRegion 3: both > 0 (finite support) · Region 4: both <= 0 (infinite support). Labels: rejected fits.") + app_theme()
+    wlabs(x = NULL, y = "number of sub-samples", title = "Support regions of the fits",
+          caption = "Labels: rejected fits.", wrap = c(42, 60)) + app_theme()
 }
 
 plot_gof_series <- function(res, block, alpha = 0.05, ksr_threshold = 70) {
-  long <- rbind(data.frame(start = res$start, label = res$label, method = res$method, stat = "KS-R: % of re-samples not rejecting the fit", value = res$ksr_pct, ref = ksr_threshold),
-                data.frame(start = res$start, label = res$label, method = res$method, stat = "KS-D: p-value of the Kolmogorov-Smirnov distance test", value = res$ksd_p, ref = alpha))
+  long <- rbind(data.frame(start = res$start, label = res$label, method = res$method, stat = "KS-R: % of re-samples not rejecting", value = res$ksr_pct, ref = ksr_threshold),
+                data.frame(start = res$start, label = res$label, method = res$method, stat = "KS-D: p-value", value = res$ksd_p, ref = alpha))
   long <- long[!is.na(long$value), ]
   if (!nrow(long)) return(NULL)
   single <- block == "full" || all(is.na(long$start))
@@ -266,7 +276,7 @@ plot_gof_series <- function(res, block, alpha = 0.05, ksr_threshold = 70) {
   p <- ggplot(long, aes(start, value, colour = method, group = method)) +
     geom_hline(aes(yintercept = ref), colour = STATUS_COLOURS[["Rejected"]], linetype = "22", linewidth = 0.5) +
     facet_wrap(~stat, ncol = 1, scales = "free_y") + method_scale(levels(res$method)) +
-    labs(x = NULL, y = NULL, title = "Goodness-of-fit by sub-sample", caption = "Dashed line: rejection threshold.") + app_theme()
+    wlabs(x = NULL, y = NULL, title = "Goodness-of-fit by sub-sample", caption = "Dashed line: rejection threshold.") + app_theme()
   if (single) p + geom_point(size = 3, position = position_dodge(width = 0.3)) else p + geom_line(linewidth = 0.55) + geom_point(size = 1.3) + date_scale(block, long$start)
 }
 
@@ -282,8 +292,8 @@ plot_regions_diagram <- function() {
     geom_abline(slope = 1, intercept = 0, colour = INK[["muted"]], linetype = "22") +
     geom_text(data = reg, aes(x, y, label = lab), size = 3.6, colour = INK[["primary"]], lineheight = 1) +
     coord_cartesian(xlim = c(-1, 1), ylim = c(-1, 1), expand = FALSE) +
-    labs(x = "λ3", y = "λ4", title = "FMKL-GLD support regions in the λ3-λ4 space",
-         subtitle = "after Chalabi, Scott & Wuertz (2010, 2012); dashed diagonal = symmetric distributions") + app_theme() + theme(aspect.ratio = 1)
+    wlabs(x = "λ3", y = "λ4", title = "FMKL-GLD support regions", caption = "After Chalabi, Scott & Wuertz (2010, 2012). Dashed diagonal: λ3 = λ4.", wrap = c(42, 60)) +
+    app_theme() + theme(aspect.ratio = 1)
 }
 
 `%||%` <- function(a, b) if (is.null(a)) b else a

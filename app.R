@@ -220,11 +220,14 @@ ui <- page_sidebar(
                              withSpinner(plotOutput("diag_qq", height = "480px"))),
               withSpinner(DTOutput("diag_table")),
               tags$p(class = "g-note mt-2", "Histogram (Freedman-Diaconis bins) with the fitted GLD densities and the normal density with the same mean and variance; Q-Q plots of the sample against each fitted GLD (Figures 2-3 of the paper).")),
-    nav_panel("Parameters", value = "tab_params", withSpinner(plotOutput("params_plot", height = "820px"))),
-    nav_panel("Moments", value = "tab_moments", withSpinner(plotOutput("moments_plot", height = "820px"))),
+    nav_panel("Parameters", value = "tab_params", withSpinner(plotOutput("params_plot", height = "820px")),
+              tags$p(class = "g-note mt-2", "Crosses mark the sub-samples where the fit is rejected by the goodness-of-fit rule chosen in the sidebar.")),
+    nav_panel("Moments", value = "tab_moments", withSpinner(plotOutput("moments_plot", height = "820px")),
+              tags$p(class = "g-note mt-2", "Fitted moments are the theoretical mean, variance, skewness and excess kurtosis of the estimated GLD; they are missing where λ3 or λ4 <= -1/4 (the moment does not exist).")),
     nav_panel("Lambda space", value = "tab_space",
               uiOutput("space_controls"),
-              uiOutput("space_plot_ui")),
+              uiOutput("space_plot_ui"),
+              tags$p(class = "g-note mt-2", "Dashed diagonal: symmetric distributions (λ3 = λ4). Shaded quadrant: Region 4, both tails unbounded. Red crosses: rejected fits; black diamonds: symmetric fits.")),
     nav_panel("Method comparison", value = "tab_cross",
               uiOutput("cross_controls"),
               withSpinner(plotOutput("cross_plot", height = "520px"))),
@@ -232,6 +235,7 @@ ui <- page_sidebar(
               layout_columns(col_widths = c(5, 7),
                              withSpinner(plotOutput("region_plot", height = "420px")),
                              withSpinner(DTOutput("region_table"))),
+              tags$p(class = "g-note mt-2", "Region 1: λ3 <= 0, λ4 > 0 (lower tail unbounded). Region 2: λ3 > 0, λ4 <= 0 (upper tail unbounded). Region 3: both > 0 (finite support). Region 4: both <= 0 (infinite support)."),
               h5(class = "mt-3", "%-differences of fitted skewness and kurtosis relative to the descriptive moments"),
               withSpinner(DTOutput("bias_table")),
               tags$p(class = "g-note mt-2", "Table 2 of the paper: Over = the fitted GLD moment exceeds the sample moment, Under = it falls short.")),
@@ -502,7 +506,7 @@ server <- function(input, output, session) {
   })
   output$roll_plot <- renderPlot({
     r <- roll(); pars <- input$roll_params; if (!length(pars)) pars <- c("l3", "l4")
-    plot_rolling_series(r$fits, pars, title = sprintf("Rolling-window GLD estimates (window = %d, step = %d)", r$window, r$step))
+    plot_rolling_series(r$fits, pars, title = sprintf("Rolling-window GLD estimates (window %d, step %d)", r$window, r$step))
   }, res = 100)
   output$roll_table <- renderDT({
     r <- roll()
@@ -592,7 +596,7 @@ server <- function(input, output, session) {
   })
   output$diag_hist <- renderPlot({
     d <- diag_fits(); bins <- if (is.na(input$diag_bins)) NULL else input$diag_bins
-    plot_fit_hist(d$x, d$fits, bins = bins, title = sprintf("%s: histogram and fitted GLD densities (n = %d)", d$label, length(d$x)))
+    plot_fit_hist(d$x, d$fits, bins = bins, title = sprintf("%s: histogram & GLD densities (n = %d)", d$label, length(d$x)))
   }, res = 100)
   output$diag_qq <- renderPlot({ d <- diag_fits(); plot_fit_qq(d$x, d$fits, title = sprintf("%s: Q-Q plots", d$label)) }, res = 100)
   output$diag_table <- renderDT({
@@ -632,13 +636,13 @@ server <- function(input, output, session) {
   output$space_plot <- renderPlot({
     r <- res(); f <- space_data(r$fits, input$space_years, r$mode)
     validate(need(nrow(f) > 0, "No fits for the selected years."))
-    yrs <- if (length(input$space_years)) paste(input$space_years, collapse = ", ") else if (r$mode == "rolling") "all windows" else "all sub-samples"
+    yrs <- if (length(input$space_years)) paste(input$space_years, collapse = ", ") else "all"
     if (r$mode == "rolling")
       plot_lambda_space(f, label_points = FALSE, common_limits = !isFALSE(input$space_common), facet = "panel",
-                        title = sprintf("λ3-λ4 space of the rolling-window GLD fits (%s)", yrs))
+                        title = sprintf("λ3-λ4 space, rolling-window fits (%s)", yrs))
     else
       plot_lambda_space(f, label_points = isTRUE(input$space_labels), common_limits = !isFALSE(input$space_common),
-                        title = sprintf("λ3-λ4 space of the fitted GLDs (%s)", yrs), ncol = if (length(r$methods) <= 2) 2 else 3)
+                        title = sprintf("λ3-λ4 space of the fits (%s)", yrs), ncol = if (length(r$methods) <= 2) 2 else 3)
   }, res = 100)
 
   # ---- method comparison -------------------------------------------------
@@ -702,10 +706,10 @@ server <- function(input, output, session) {
     p <- pub(); f <- space_data(p$estimates, input$pub_years)
     validate(need(nrow(f) > 0, "No estimates for the selected years."))
     yrs <- if (length(input$pub_years)) paste(input$pub_years, collapse = ", ") else "all months"
-    plot_lambda_space(f, label_points = nrow(f) <= 60, title = sprintf("λ3-λ4 space of the published MM and MLE fits (%s)", yrs))
+    plot_lambda_space(f, label_points = nrow(f) <= 60, title = sprintf("λ3-λ4 space, published fits (%s)", yrs))
   }, res = 100)
   output$pub_params <- renderPlot({ p <- pub(); plot_lambda_series(p$estimates, "month", "Published GLD parameters by month") }, res = 100)
-  output$pub_moments <- renderPlot({ p <- pub(); plot_moment_series(p$estimates, p$descriptive, "month", "Published: descriptive vs fitted GLD moments") }, res = 100)
+  output$pub_moments <- renderPlot({ p <- pub(); plot_moment_series(p$estimates, p$descriptive, "month", "Published: descriptive vs fitted moments") }, res = 100)
   output$pub_cross <- renderPlot({ p <- pub(); plot_cross_methods(p$estimates, "MM", "MLE", label_points = FALSE) }, res = 100)
   output$pub_regions <- renderPlot({ p <- pub(); plot_region_counts(region_summary(p$estimates)) }, res = 100)
   output$pub_gof <- renderPlot({
